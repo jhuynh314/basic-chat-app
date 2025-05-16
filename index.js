@@ -30,7 +30,8 @@ async function main() {
     CREATE TABLE IF NOT EXISTS messages (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       client_offset TEXT UNIQUE,
-      content TEXT
+      content TEXT,
+      name TEXT
     );
   `);
 
@@ -46,10 +47,10 @@ async function main() {
     });
 
     io.on('connection', async (socket) => {
-        socket.on('chat message', async (msg, clientOffset, callback) => {
+        socket.on('chat message', async (msg, clientOffset, username, callback) => {
             let result;
             try {
-                result = await db.run('INSERT INTO messages (content, client_offset) VALUES (?, ?)', msg, clientOffset);
+                result = await db.run('INSERT INTO messages (content, name, client_offset) VALUES (?, ?, ?)', msg, username, clientOffset);
             } catch (e) {
                 if (e.errno === 19 /* SQLITE_CONSTRAINT */) {
                     callback();
@@ -58,16 +59,16 @@ async function main() {
                 }
                 return;
             }
-            io.emit('chat message', msg, result.lastID);
+            io.emit('chat message', username + ": " + msg, result.lastID);
             callback();
         });
 
         if (!socket.recovered) {
             try {
-                await db.each('SELECT id, content FROM messages WHERE id > ?',
+                await db.each('SELECT id, content, name FROM messages WHERE id > ?',
                     [socket.handshake.auth.serverOffset || 0],
                     (_err, row) => {
-                        socket.emit('chat message', row.content, row.id);
+                        socket.emit('chat message', row.content, row.name, row.id);
                     }
                 )
             } catch (e) {
