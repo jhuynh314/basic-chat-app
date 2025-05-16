@@ -47,6 +47,12 @@ async function main() {
     });
 
     io.on('connection', async (socket) => {
+        io.emit('chat message', "User has entered");
+
+        socket.on('disconnect', ()=>{
+            io.emit('chat message', "User has left");
+        });
+
         socket.on('chat message', async (msg, clientOffset, username, callback) => {
             let result;
             try {

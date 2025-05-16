@@ -112,9 +112,9 @@
         }
       });
 
-      socket.on("chat message", (msg, username, serverOffset) => {
+      socket.on("chat message", (msg, serverOffset) => {
         const item = document.createElement("li");
-        item.textContent = username + ": " + msg;
+        item.textContent = msg;
         messages.appendChild(item);
         window.scrollTo(0, document.body.scrollHeight);
         socket.auth.serverOffset = serverOffset;
