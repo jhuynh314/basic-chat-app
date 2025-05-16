@@ -24,6 +24,18 @@
         backdrop-filter: blur(10px);
       }
 
+      #fieldset {
+        padding: 0.5rem;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        display: flex;
+        height: 3rem;
+        box-sizing: border-box;
+        backdrop-filter: blur(10px);
+      }
+
       #input {
         background: none;
         padding: 0 1rem;
@@ -66,11 +78,14 @@
     <div>
       <label for="username">Username: </label>
       <input id="username">
+      <button id="sign-in-btn">Sign in</button>
     </div>
     <ul id="messages"></ul>
     <form id="form" action="">
-      <input id="input" autocomplete="off" /><button>Send</button>
-      <button id="toggle-btn">Disconnect</button>
+      <fieldset id="fieldset" disabled>
+        <input id="input" autocomplete="off"/><button>Send</button>
+        <button id="toggle-btn">Disconnect</button>
+      </fieldset>
     </form>
     <script src="/socket.io/socket.io.js"></script>
     <script>
@@ -86,17 +101,30 @@
       });
 
       const form = document.getElementById("form");
+      const fieldset = document.getElementById("fieldset");
       const input = document.getElementById("input");
       const messages = document.getElementById("messages");
       const toggleButton = document.getElementById("toggle-btn");
       const username = document.getElementById("username");
+      const signInButton = document.getElementById('sign-in-btn');
+
+
+      signInButton.addEventListener('click', (e) =>{
+        e.preventDefault();
+        if(username.value){
+          socket.emit('sign in', username.value);
+          fieldset.disabled = false;
+          username.disabled = true;
+          signInButton.disabled = true;
+        }
+      });
 
       form.addEventListener("submit", (e) => {
         e.preventDefault();
         if (input.value) {
-          // comopute  uniqe offset
+          // compute uniqe offset
           const clientOffset = `${socket.id}-${counter++}`;
-          socket.emit("chat message", input.value, clientOffset, username.value);
+          socket.emit("chat message", input.value, clientOffset);
           username.value = username.value;
           input.value = "";
         }
@@ -104,12 +132,9 @@
       toggleButton.addEventListener("click", (e) => {
         e.preventDefault();
         if (socket.connected) {
-          toggleButton.innerText = "Connect";
+          fieldset.disabled = true;
           socket.disconnect();
-        } else {
-          toggleButton.innerText = "Disconnect";
-          socket.connect();
-        }
+        } 
       });
 
       socket.on("chat message", (msg, serverOffset) => {

@@ -21,6 +21,8 @@ if (cluster.isPrimary) {
 }
 
 async function main() {
+    let players = {};
+
     const db = await open({
         filename: 'chat.db',
         driver: sqlite3.Database
@@ -47,16 +49,23 @@ async function main() {
     });
 
     io.on('connection', async (socket) => {
-        io.emit('chat message', "User has entered");
-
+        
         socket.on('disconnect', ()=>{
-            io.emit('chat message', "User has left");
+            if(players[socket.id]){
+                io.emit('chat message', players[socket.id] + " has left");
+            }
+        });
+        
+        socket.on('sign in', async (username, callback)=>{
+            players[socket.id] = username;
+            io.emit('chat message', username + " has entered");
+            callback();
         });
 
-        socket.on('chat message', async (msg, clientOffset, username, callback) => {
+        socket.on('chat message', async (msg, clientOffset, callback) => {
             let result;
             try {
-                result = await db.run('INSERT INTO messages (content, name, client_offset) VALUES (?, ?, ?)', msg, username, clientOffset);
+                result = await db.run('INSERT INTO messages (content, name, client_offset) VALUES (?, ?, ?)', msg, players[socket.id], clientOffset);
             } catch (e) {
                 if (e.errno === 19 /* SQLITE_CONSTRAINT */) {
                     callback();
@@ -65,7 +74,7 @@ async function main() {
                 }
                 return;
             }
-            io.emit('chat message', username + ": " + msg, result.lastID);
+            io.emit('chat message', players[socket.id] + ": " + msg, result.lastID);
             callback();
         });
 
@@ -74,7 +83,7 @@ async function main() {
                 await db.each('SELECT id, content, name FROM messages WHERE id > ?',
                     [socket.handshake.auth.serverOffset || 0],
                     (_err, row) => {
-                        socket.emit('chat message', row.content, row.name, row.id);
+                        socket.emit('chat message', row.name + ": " + row.content, row.id);
                     }
                 )
             } catch (e) {
